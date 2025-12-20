@@ -1,0 +1,47 @@
+version: "3.8"
+
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: kasparro_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/kasparro_db
+      COINGECKO_API: https://api.coingecko.com/api/v3
+      COINPAPRIKA_API: https://api.coinpaprika.com/v1
+      PORT: 3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+    command: npm start
+
+  etl-worker:
+    build: .
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/kasparro_db
+      COINGECKO_API: https://api.coingecko.com/api/v3
+      COINPAPRIKA_API: https://api.coinpaprika.com/v1
+    depends_on:
+      db:
+        condition: service_healthy
+    command: npm run etl
+    restart: "no"
+
+volumes:
+  pgdata:
